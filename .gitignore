@@ -1,0 +1,33 @@
+# Папки виртуальных окружений
+myenv/
+.venv/
+venv/
+
+# Папки кэша Python
+**/__pycache__/
+*.py[cod]
+
+# Файлы конфигурации
+.env
+
+# Логи
+*.xlsx
+*xlsb
+*.json
+*.log
+*.out
+*.gz
+*.csv
+*.spec
+
+# Прочие временные файлы и папки
+*.tmp
+*.temp
+*.bak
+*.pdf
+~$*
+output/
+
+# EXE файлы и папки
+build/
+dist/
