@@ -2,6 +2,7 @@ import os
 import sys
 from datetime import datetime
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 from colorama import Fore, Style, init
@@ -14,7 +15,7 @@ from modules.prepare_output_folders import prepare_output_folders
 from modules.write_results import write_results
 from modules.group_poles import group_poles
 from modules.function_execution_time import function_execution_time
-from modules.add_variables import add_variables
+from modules.process_row import process_row
 
 
 init(autoreset=True)
@@ -38,7 +39,8 @@ NO_TENANT_INPUT_TEMPLATE_PATH: str = os.path.join(
     TEMPLATES_FOLDER_DIR, 'no_tenant.docx'
 )
 
-POLE_PART: int = 8   # Первые n символов шифр опоры для поиска.
+POLE_PART: int = 8   # Первые n символов шифра опоры для поиска.
+MAX_WORKERS = os.cpu_count()
 
 # Объединяем данные отчетов по оборудованию и kits по AssetKitId, чтобы
 # определить шифр опоры, а затем уже объеденяем с договарами по шифру опоры.
@@ -242,135 +244,20 @@ def prepare_word_templates(
     main_df = main_df.fillna('')
     tl_df = tl_df.fillna('')
 
-    for index, row in base_df.iterrows():
-        try:
-            no_tenant_flag: bool = False
-            table = None
-            rcs: str = str(row['РЦС']).strip()
-            pole: str = str(row['Шифр TS']).strip()
-            rzd_ams_lease_agreement_number: str = str(row[
-                '№ договора аренды АМС "РЖД"'
-            ]).strip()
-            date_of_contract: str = row['дата договора']
-            if isinstance(date_of_contract, pd.Timestamp):
-                date_of_contract = date_of_contract.strftime('%d-%m-%Y')
-            else:
-                date_of_contract = str(date_of_contract).strip()
-
-            ams_name: str = str(row['Наименование']).strip()
-            ams_address: str = str(row['Адрес']).strip()
-            ams_id: str = str(row['ID АМС']).strip()
-            ams_cadastral_number: str = str(
-                row['Кадастровый номер участка']
-            ).strip()
-            ams_square = str(row['площадь участка']).strip()
-            ams_height = str(row['высота, м']).strip()
-
-            output_name = f'{pole}.docx'
-
-            filtered_df_tl = tl_df[
-                tl_df['Шифр'].str.startswith(pole[:POLE_PART])
-            ].reset_index(drop=True)
-
-            if len(filtered_df_tl) == 0:
-                print(
-                    f'{Fore.RED}{index+1}/{COUNT_BASE_DF} ' +
-                    f'-- опора {pole} не найда в TL;'
-                )
-                write_results(
-                    OUTPUT_LOG_PATH,
-                    f'{index+1}/{COUNT_BASE_DF} -- опора {pole} не найда в TL;'
-                )
-                continue
-
-            if (filtered_df_tl['Статус опоры'] == 'No Tenant').any():
-                no_tenant_flag = True
-
-            if not no_tenant_flag:
-                filtered_main_df = main_df[
-                    main_df['Шифр опоры'].str.startswith(pole[:POLE_PART])
-                ].reset_index(drop=True)
-
-                if len(filtered_main_df) != 0:
-                    table = filtered_main_df[COLUMNS_TO_KEEP_JOIN]
-
-            # Удаляем из dataframe уже рассмотренные опоры:
-            main_df = (
-                main_df[
-                    ~main_df['Шифр опоры'].str.startswith(pole[:POLE_PART])
-                ]
-            )
-            tl_df = (
-                tl_df[~tl_df['Шифр'].str.startswith(pole[:POLE_PART])]
-            )
-
-            template_path = (
-                NORMAL_INPUT_TEMPLATE_PATH
-                if table is not None
-                else NO_TENANT_INPUT_TEMPLATE_PATH
-            )
-
-            add_variables(
-                context={
-                    'rzd_ams_lease_agreement_number':
-                    rzd_ams_lease_agreement_number,
-                    'date_of_contract': date_of_contract,
-                    'ams_name': ams_name,
-                    'ams_address': ams_address,
-                    'ams_id': ams_id,
-                    'ams_cadastral_number': ams_cadastral_number,
-                    'ams_square': ams_square,
-                    'ams_height': ams_height,
-                    'notification_date': notification_date,
-                    'user_name': user_name,
-                    'user_email': user_email,
-                    'user_phone': user_phone,
-                },
-                template_path=template_path,
-                output_name=output_name,
-                output_dir=OUTPUT_FOLDER_DIR,
-                table=table,
-            )
-
-            if no_tenant_flag:
-                print(
-                    Fore.LIGHTGREEN_EX + Style.DIM +
-                    f'{index+1}/{COUNT_BASE_DF} ' +
-                    f'-- шаблон для {pole} ({rcs}) (No Tenant) готов;'
-                )
-                write_results(
-                    OUTPUT_LOG_PATH,
-                    f'{index+1}/{COUNT_BASE_DF} ' +
-                    f'-- шаблон для {pole} ({rcs}) (No Tenant) готов;',
-                )
-            elif not no_tenant_flag and table is None:
-                print(
-                    Fore.LIGHTYELLOW_EX + Style.DIM +
-                    f'{index+1}/{COUNT_BASE_DF} '
-                    f'-- шаблон для {pole} ({rcs}) ' +
-                    '(отсутствует в отчёте по оборудованию) готов;'
-                )
-                write_results(
-                    OUTPUT_LOG_PATH,
-                    f'{index+1}/{COUNT_BASE_DF} ' +
-                    f'-- шаблон для {pole} ({rcs}) ' +
-                    '(отсутствует в отчёте по оборудованию) готов;'
-                )
-            else:
-                print(
-                    Fore.LIGHTGREEN_EX + Style.DIM +
-                    f'{index+1}/{COUNT_BASE_DF} ' +
-                    f'-- шаблон для {pole} ({rcs}) готов;'
-                )
-                write_results(
-                    OUTPUT_LOG_PATH,
-                    f'{index+1}/{COUNT_BASE_DF} ' +
-                    f'-- шаблон для {pole} ({rcs}) готов;'
-                )
-
-        except Exception as e:
-            print(Fore.RED + e)
-            write_results(OUTPUT_LOG_PATH, e)
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {
+            executor.submit(
+                process_row,
+                row, index,
+                POLE_PART, COUNT_BASE_DF, COLUMNS_TO_KEEP_JOIN,
+                tl_df, main_df,
+                NORMAL_INPUT_TEMPLATE_PATH, NO_TENANT_INPUT_TEMPLATE_PATH,
+                OUTPUT_LOG_PATH, OUTPUT_FOLDER_DIR,
+                notification_date, user_name, user_email, user_phone,
+            ): index for index, row in base_df.iterrows()
+        }
+        for future in futures:
+            future.result()
 
     group_poles(OUTPUT_FOLDER_DIR, base_df)
 
@@ -408,6 +295,3 @@ if __name__ == '__main__':
         )
         if exit_check.strip().lower() == 'q':
             break
-
-
-# 52722-11-32-1-2

@@ -7,10 +7,11 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
 def add_table_from_dataframe(
-    doc: Document, df: pd.DataFrame, font_size: int = 9
-) -> None:
+        doc: Document, df: pd.DataFrame, font_size: int = 9
+):
     """Добавление таблицы из DataFrame в документ с форматированием."""
 
+    # Создание таблицы:
     table = doc.add_table(rows=df.shape[0] + 1, cols=df.shape[1])
 
     # Настройка стиля таблицы:
@@ -36,23 +37,28 @@ def add_table_from_dataframe(
         tbl.append(tblPr)
     tblPr.append(tblBorders)
 
-    # Добавление заголовков с настройкой размера шрифта:
+    # Добавление заголовков:
+    header_cells = table.rows[0].cells
     for i, column_name in enumerate(df.columns):
-        cell = table.cell(0, i)
-        run = cell.paragraphs[0].add_run(column_name)
-        run.bold = True
-        run.font.size = Pt(font_size)
-        run.font.name = 'Times New Roman'
-        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cell = header_cells[i]
+        cell.text = column_name
+        for paragraph in cell.paragraphs:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = paragraph.runs[0]
+            run.bold = True
+            run.font.size = Pt(font_size)
+            run.font.name = 'Times New Roman'
 
-    # Добавление данных с настройкой размера шрифта:
+    # Добавление данных:
     for i, row in df.iterrows():
         for j, value in enumerate(row):
             cell = table.cell(i + 1, j)
-            run = cell.paragraphs[0].add_run(str(value))
-            run.font.size = Pt(font_size)
-            run.font.name = 'Times New Roman'
-            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            cell.text = str(value)
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = paragraph.runs[0]
+                run.font.size = Pt(font_size)
+                run.font.name = 'Times New Roman'
 
     # Центрирование таблицы в документе:
     table.alignment = WD_ALIGN_PARAGRAPH.CENTER
