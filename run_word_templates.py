@@ -47,8 +47,9 @@ MAX_WORKERS = os.cpu_count()
 COLUMNS_TO_KEEP_OPERATORS: list[str] = [
     'AssetKitId',
     'Оператор',
-    'Тип',
+    'Тип',  # Далее для читаемости отсортируем table по этому столбцу.
     'Верхняя отм. оборудования',
+    'Смещение',
     'Ширина',
     'Вес',
     'Диаметр',
@@ -64,6 +65,7 @@ COLUMNS_TO_KEEP_JOIN: list[str] = [
     'Номер рамочного договора',
     'Тип',
     'Верхняя отм. оборудования',
+    'Смещение',
     'Ширина',
     'Вес',
     'Диаметр',
@@ -132,12 +134,16 @@ def prepare_word_templates(
         )
         download_data_from_api(
             api_links.MEGAFON,
-            os.path.join(CURRENT_DIR, TMP_FOLDER_DIR, tmp_files_names.MEGAFON),
+            os.path.join(
+                CURRENT_DIR, TMP_FOLDER_DIR, tmp_files_names.MEGAFON
+            ),
             message='Мегафон -- загрузка байтов: '
         )
         download_data_from_api(
             api_links.TELE_2,
-            os.path.join(CURRENT_DIR, TMP_FOLDER_DIR, tmp_files_names.TELE_2),
+            os.path.join(
+                CURRENT_DIR, TMP_FOLDER_DIR, tmp_files_names.TELE_2
+            ),
             message='Теле2 -- загрузка байтов: '
         )
         download_data_from_api(
@@ -205,7 +211,7 @@ def prepare_word_templates(
         pd.read_json(
             os.path.join(CURRENT_DIR, TMP_FOLDER_DIR, tmp_files_names.KITS),
             orient='records'
-        )[COLUMNS_TO_KEEP_KITS],
+        )[COLUMNS_TO_KEEP_KITS].drop_duplicates(subset=['AssetKitId']),
         on='AssetKitId', how='left'
     )
 
@@ -216,19 +222,19 @@ def prepare_word_templates(
                 CURRENT_DIR, TMP_FOLDER_DIR, tmp_files_names.CONTRACT
             ),
             orient='records'
-        )[COLUMNS_TO_KEEP_CONTRACTS],
+        )[COLUMNS_TO_KEEP_CONTRACTS].drop_duplicates(subset=['Шифр опоры']),
         on='Шифр опоры', how='left'
     )
+
+    main_df = main_df[
+        main_df['Шифр опоры'].str.startswith(valid_poles, na=False)
+    ].reset_index(drop=True)
 
     filter_columns = (
         COLUMNS_TO_KEEP_JOIN + ['Шифр опоры']
     ) if 'Шифр опоры' not in COLUMNS_TO_KEEP_JOIN else COLUMNS_TO_KEEP_JOIN
 
     main_df = main_df[filter_columns]
-
-    main_df = main_df[
-        main_df['Шифр опоры'].str.startswith(valid_poles, na=False)
-    ].reset_index(drop=True)
 
     tl_df = pd.read_json(
         os.path.join(CURRENT_DIR, TMP_FOLDER_DIR, tmp_files_names.TL),

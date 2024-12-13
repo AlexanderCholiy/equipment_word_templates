@@ -72,6 +72,14 @@ def make_templates(
 
             if not filtered_main_df.empty:
                 table = filtered_main_df[COLUMNS_TO_KEEP_JOIN]
+                table = table.sort_values(by='Тип', ascending=False)
+
+                def remove_trailing_zero(value):
+                    if isinstance(value, float) and value == int(value):
+                        return int(value)
+                    return value
+
+                table = table.apply(lambda x: x.map(remove_trailing_zero))
 
         template_path = NORMAL_INPUT_TEMPLATE_PATH if table is not None else (
             NO_TENANT_INPUT_TEMPLATE_PATH
