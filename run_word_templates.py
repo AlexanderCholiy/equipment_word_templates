@@ -15,7 +15,7 @@ from modules.prepare_output_folders import prepare_output_folders
 from modules.write_results import write_results
 from modules.group_poles import group_poles
 from modules.function_execution_time import function_execution_time
-from modules.process_row import process_row
+from modules.make_templates import make_templates
 
 
 init(autoreset=True)
@@ -196,7 +196,8 @@ def prepare_word_templates(
                 ),
                 orient='records'
             )[COLUMNS_TO_KEEP_OPERATORS],
-        ]
+        ],
+        ignore_index=True
     )
 
     main_df = pd.merge(
@@ -240,14 +241,14 @@ def prepare_word_templates(
 
     COUNT_BASE_DF: int = len(base_df)
 
-    base_df = base_df.fillna('')
-    main_df = main_df.fillna('')
-    tl_df = tl_df.fillna('')
+    base_df = base_df.fillna('н/д')
+    main_df = main_df.fillna('н/д')
+    tl_df = tl_df.fillna('н/д')
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {
             executor.submit(
-                process_row,
+                make_templates,
                 row, index,
                 POLE_PART, COUNT_BASE_DF, COLUMNS_TO_KEEP_JOIN,
                 tl_df, main_df,
@@ -295,3 +296,6 @@ if __name__ == '__main__':
         )
         if exit_check.strip().lower() == 'q':
             break
+
+
+# 60502-30-30-0-2 добавь н/д если нет номер рамочного договора.

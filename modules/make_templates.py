@@ -13,7 +13,7 @@ init(autoreset=True)
 print_lock = threading.Lock()
 
 
-def process_row(
+def make_templates(
     row: Series, index: int,
     POLE_PART: int, COUNT_BASE_DF: int, COLUMNS_TO_KEEP_JOIN: list[str],
     tl_df: pd.DataFrame, main_df: pd.DataFrame,
