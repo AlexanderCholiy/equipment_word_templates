@@ -21,7 +21,7 @@ def download_data_from_api(
                     f.write(chunk)
 
                     print(
-                        Fore.BLACK + Style.DIM + message +
+                        Fore.WHITE + Style.DIM + message +
                         str(loaded_size), end='\r'
                     )
             print()

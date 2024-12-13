@@ -159,7 +159,7 @@ def prepare_word_templates(
             message='Прочее -- загрузка байтов: '
         )
 
-    print(Fore.BLACK + Style.DIM + 'Пожалуйста подождите...')
+    print(Fore.WHITE + Style.DIM + 'Пожалуйста подождите...')
 
     base_df = pd.read_excel(
         os.path.join(CURRENT_DIR, INPUT_FOLDER_DIR, 'Список АМС РБТ.xlsx')
