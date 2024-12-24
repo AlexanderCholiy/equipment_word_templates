@@ -72,7 +72,9 @@ def make_templates(
 
             if not filtered_main_df.empty:
                 table = filtered_main_df[COLUMNS_TO_KEEP_JOIN]
-                table = table.sort_values(by='Тип', ascending=False)
+                table = table.sort_values(
+                    by=['Оператор', 'Тип'], ascending=[True, False]
+                )
 
                 def remove_trailing_zero(value):
                     if isinstance(value, float) and value == int(value):
